@@ -880,7 +880,94 @@ function saveAllFiles() {
 
 
 //-------------------------------------------------------------------------------------------------------------
+//send file to the server
 
+// Function to set/get cookies
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function setCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = `; expires=${date.toUTCString()}`;
+    }
+    document.cookie = `${name}=${value || ""}${expires}; path=/`;
+}
+
+// WebSocket object
+let socket = null;
+
+// Function to handle WebSocket connection
+function startWebSocketConnection() {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        socket = new WebSocket('ws://localhost:8080');
+
+        socket.onopen = function(event) {
+            console.log("Connected to the server");
+
+            // If session ID doesn't exist, create a new one and save it in a cookie
+            let sessionId = getCookie('sessionId');
+            if (!sessionId) {
+                sessionId = generateRandomSessionId(); // Random session ID generator
+                setCookie('sessionId', sessionId, 1); // Store session ID in cookie for 1 day
+            }
+
+            // Now that the WebSocket is open, call the sendFiles function
+            sendFiles(sessionId);
+        };
+
+        socket.onmessage = function(event) {
+            console.log("Message from server:", event.data);
+        };
+
+        socket.onclose = function() {
+            console.log("WebSocket connection closed");
+        };
+    } else {
+        console.log("WebSocket is already open.");
+        sendFiles(getCookie('sessionId')); // If connection is already open, send files
+    }
+}
+
+// Function to send files through WebSocket
+function sendFiles(sessionId) {
+    const folderName = sessionId; // Use sessionId as folderName
+    const zip = new JSZip();
+    const editors = document.querySelectorAll("#editor > div");
+
+    editors.forEach(editorDiv => {
+        const editorDivId = editorDiv.id;
+        if (editorSessions[editorDivId]) {
+            const content = editorSessions[editorDivId].getValue();
+
+            const tab = document.querySelector(`#editor-${editorDivId.split('-')[2]}`);
+            const fileNameElement = tab.querySelector('a');
+            const fileName = fileNameElement ? fileNameElement.textContent.trim() : `Untitled_${editorDivId.split('-')[2]}.txt`;
+
+            zip.file(`${folderName}/${fileName}`, content);
+        }
+    });
+
+    // Generate the ZIP and send it through WebSocket
+    zip.generateAsync({ type: "blob" }).then(function(content) {
+        socket.send(content); // Send ZIP file as binary
+    });
+}
+
+// Random session ID generator
+function generateRandomSessionId() {
+    return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+}
+
+
+
+
+//---------------------------------------------------------------------------------------------------------
 function add_content(bashOutput, focus) {
     bashOutput = $('<div>').text(bashOutput).html();
     $('.wrapper').append('<p id="term-output">' + bashOutput + '</p>');

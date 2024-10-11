@@ -22,7 +22,10 @@
     <link rel="icon" type="image/png" href="https://www.online-cpp.com/favicon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/components/dropdown.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/components/transition.min.css"/>
-    
+    <!-- xterm -->
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" rel="stylesheet">
+
     <!-- Bootstrap 3.3.7 -->
     <link rel="stylesheet" href="https://www.online-cpp.com/assets/bower_components/bootstrap/dist/css/bootstrap.min.css">
     <!-- Font Awesome -->
@@ -62,6 +65,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
+    <link href="./web-terminal/node_modules/@xterm/xterm/css/xterm.css"></link>
 
 
 
@@ -146,8 +151,10 @@
                 <button type="button" class="btn btn-success btn-sm" id="run-btn" onclick="run_code()" data-toggle="popover" data-placement="bottom" data-trigger="hover" data-content="F8"><i class="fa fa-play"></i>&ensp;<strong>Run</strong></button>
             </div>
             <a tabindex="0" type="button" class="btn btn-default btn-sm" id="share-btn" onclick="share_code_modal()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="Share the code to your friends and colleagues"><i class="fa fa-share"></i>&ensp;<strong>Share</strong></a>
-            <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="saveAllFiles()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
-                &ensp;<strong>Download</strong></a>
+            <!-- <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="saveAllFiles()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
+                &ensp;<strong>Download</strong></a> -->
+                <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="startWebSocketConnection()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
+                    &ensp;<strong>send</strong></a>
 
             <input class="textbox" type="text" id="input_arguments" placeholder=" Command Line Arguments">
         </div>
@@ -155,7 +162,7 @@
     </div>
 
     <div id="d" class="split">
-        <div class="boxed1" id="output_header">
+        <div class="boxed1" id="output_header" style="display: inline-table;">
             <div id="hint-section"></div>
             <div class="btn-group status" id="tool-btn">
                 <button type="button" data-toggle="tooltip" data-container="body" data-placement="right" title="Copy to Clipboard" class="btn btn-default btn-sm status" onclick="copy_output()"><i class="fas fa-copy"></i></button>
@@ -167,7 +174,7 @@
             <div id="output-status"></div>
         </div>
 
-        <div id="terminal">
+        <!-- <div id="terminal">
             <div id="progress-status"></div>
             <div class="boxed2" id="output">
                 <div class="wrapper" id="wrap"></div>
@@ -175,7 +182,19 @@
                     <input id="term-input" autocomplete="off">
                 </form>
             </div>
+        </div> -->
+
+        <div class="terminal-container" style="width: -webkit-fill-available; height: revert-layer;">
+            <div id="terminal" >
+            </div>
+            <div id="progress-status"></div>
         </div>
+       
+        <link rel="stylesheet" href="./css/xterm-min.css">
+        <script src="./web-terminal/script.js"></script>
+        
+        
+
     </div>
     <div id="info">
         
@@ -490,19 +509,29 @@
     });
 
     function term_expand() {
-        var element = document.getElementById('term-expand').innerHTML;
-        if (element === '<i class="fas fa-expand-alt fa-lg"></i>' ) {
-            instance.setSizes([0, 94]);
-            editor.resize();
-            document.getElementById('term-expand').innerHTML = '<i class="fas fa-compress-alt fa-lg"></i>'
-        } else {
-            instance.setSizes([66, 28]);
-            editor.resize();
-            document.getElementById('term-expand').innerHTML = '<i class="fas fa-expand-alt fa-lg"></i>'
-        }
-        $('#term-expand').blur();
-        $('[data-toggle="tooltip"]').tooltip('hide');
+    var element = document.getElementById('term-expand').innerHTML;
+    
+    if (element === '<i class="fas fa-expand-alt fa-lg"></i>') {
+        // Set sizes for expanded view
+        instance.setSizes([0, 94]);  // Adjust the sizes for your layout
+        editor.resize();  // Resize the editor
+        document.getElementById('term-expand').innerHTML = '<i class="fas fa-compress-alt fa-lg"></i>';
+        
+    } else {
+        // Set sizes for collapsed view
+        instance.setSizes([66, 28]);  // Adjust the sizes for your layout
+        editor.resize();  // Resize the editor
+        document.getElementById('term-expand').innerHTML = '<i class="fas fa-expand-alt fa-lg"></i>';
     }
+
+    // Blur the button and hide tooltips
+    $('#term-expand').blur();
+    $('[data-toggle="tooltip"]').tooltip('hide');
+
+    // Adjust terminal size dynamically
+    fitAddon.fit();  // Recalculate the terminal size based on the new div size
+}
+
 
     editor.setOptions({
         enableBasicAutocompletion: true, // the editor completes the statement when you hit Ctrl + Space

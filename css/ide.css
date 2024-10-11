@@ -933,3 +933,22 @@ textarea {
 
 /* closing button on editor tab */
 
+#terminal {
+    max-height: none;
+    width: -webkit-fill-available;
+    height: -webkit-fill-available;
+}
+
+/* Make the terminal fill the entire parent container */
+.terminal-container {
+    height: -webkit-fill-available;
+    display: block;
+    scroll-margin: inherit;
+}
+
+/* Adjust the form and input styling */
+#term-form {
+    display: none;
+}
+
+
