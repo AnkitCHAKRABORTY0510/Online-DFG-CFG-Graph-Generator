@@ -1,11 +1,49 @@
-# Use Alpine Linux as the base image
-FROM alpine:latest
+FROM kalilinux/kali-rolling
 
-# Install necessary packages
-RUN apk add --no-cache bash gcc g++ make
+RUN apt-get update
 
-# Set the working directory
-WORKDIR /workspace
+RUN apt-get install -y --no-install-recommends \
+        gnupg2 wget ca-certificates apt-transport-https \
+        autoconf sudo automake neofetch cmake dpkg-dev file make patch libc6-dev libmpc-dev vim zip unzip
 
-# Keep the container running
-CMD ["tail", "-f", "/dev/null"]
+RUN echo "deb https://apt.llvm.org/bullseye llvm-toolchain-bullseye-15 main" \
+        > /etc/apt/sources.list.d/llvm.list
+
+RUN wget -qO /etc/apt/trusted.gpg.d/llvm.asc \
+        https://apt.llvm.org/llvm-snapshot.gpg.key
+
+RUN apt-get update
+
+RUN apt-get --fix-broken install -y clang-15 lld-15 libc++-15-dev libc++abi-15-dev
+
+RUN for f in /usr/lib/llvm-*/bin/*; do ln -sf "$f" /usr/bin; done && \
+    ln -sf clang /usr/bin/cc && \
+    ln -sf clang /usr/bin/c89 && \
+    ln -sf clang /usr/bin/c99 && \
+    ln -sf clang++ /usr/bin/c++ && \
+    ln -sf clang++ /usr/bin/g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN useradd -m -s /bin/bash clouduser && \
+    echo "clouduser:clouduser" | chpasswd && \
+    usermod -aG sudo clouduser
+    
+# Set the working directory for the user
+WORKDIR /home/clouduser
+
+COPY home /home/clouduser/
+
+RUN chown -R clouduser:clouduser /home/clouduser
+
+# Switch to the new user
+USER clouduser
+
+RUN mv neofetch /home/clouduser/.config/
+
+RUN mkdir build && cd build && cmake .. && make install && cd .. && rm -rf build lib CMakeLists.txt
+
+RUN echo "clear && neofetch" >> /home/clouduser/.bashrc
+
+# Ensure the container starts with the user's shell
+CMD ["/bin/bash"]

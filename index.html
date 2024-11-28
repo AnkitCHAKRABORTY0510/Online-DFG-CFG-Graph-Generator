@@ -19,6 +19,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-touch-fullscreen" content="yes">
 
+
     <link rel="icon" type="image/png" href="https://www.online-cpp.com/favicon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/components/dropdown.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/components/transition.min.css"/>
@@ -33,6 +34,7 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/ide.css">
+    <link rel="graphviz-viewer" href="graphviz-viewer.css">
 
     <!-- Google Font -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
@@ -67,7 +69,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.js"></script>
     <link href="./web-terminal/node_modules/@xterm/xterm/css/xterm.css"></link>
-
+    <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script>
 
 
 
@@ -105,7 +108,7 @@
 <nav class="nav navbar-top primary">
     <h2 class="nav_logo">
     <i class="fas fa-code"></i>
-        <span>Online CPP</span>
+    <span>Online C/C++ Data & Control Flow Graph Generator</span>
 </h2>
     
     <!-- Go to www.addthis.com/dashboard to customize your tools -->
@@ -153,7 +156,7 @@
             <a tabindex="0" type="button" class="btn btn-default btn-sm" id="share-btn" onclick="share_code_modal()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="Share the code to your friends and colleagues"><i class="fa fa-share"></i>&ensp;<strong>Share</strong></a>
             <!-- <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="saveAllFiles()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
                 &ensp;<strong>Download</strong></a> -->
-                <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="startWebSocketConnection()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
+                <a tabindex="0" type="button" class="btn btn-default btn-sm" id="download-btn" onclick="sendAllFiles()" data-toggle="popover" data-placement="right" data-trigger="hover" data-content="download project files"><i class="fa fa-download" aria-hidden="true"></i>
                     &ensp;<strong>send</strong></a>
 
             <input class="textbox" type="text" id="input_arguments" placeholder=" Command Line Arguments">
@@ -184,7 +187,7 @@
             </div>
         </div> -->
 
-        <div class="terminal-container" style="width: -webkit-fill-available; height: revert-layer;">
+        <div class="terminal-container" style="width: -webkit-fill-available; height: revert-layer; width:100vw">
             <div id="terminal" >
             </div>
             <div id="progress-status"></div>
@@ -196,10 +199,24 @@
         
 
     </div>
-    <div id="info">
-        
+
+    <!-- integrate graphviz viewer -->
+    <div id="cfg-viewer" style="margin-top: 1vh;"></div>
+    <div id="dfg-viewer" style="margin-top: 1vh;"></div>
+  
+    <!-- integrate graphviz viewer -->
+    
+
+
+
+<div id="info">
     <p id="footer">© 2024 online C/C++ CFG & DFG generator | <a href="about" target="_blank">About</a> | <a href="terms_and_conditions" target="_blank">Terms & Conditions</a> | <a href="privacy_policy" target="_blank">Privacy Policy</a></p>
 </div>
+
+
+
+
+
 
 
 <!-- Save Result modal -->
@@ -814,3 +831,335 @@
 
 <!-- Go to www.addthis.com/dashboard to customize your tools -->
 <script type="text/javascript" src="//s7.addthis.com/js/300/addthis_widget.js#pubid=ra-5e908e7d111adc12"></script> 
+
+<script>
+    const graphContainer = document.querySelector('.graph-container-graphviz');
+    const graphView = document.getElementById('graph-view-graphviz');
+    const dotInput = document.getElementById('dot-input-graphviz');
+    const renderButton = document.getElementById('render-btn-graphviz');
+    const downloadButton = document.getElementById('download-btn-graphviz');
+    const outputFormat = document.getElementById('output-format-graphviz');
+    const zoomInButton = document.getElementById('zoom-in-graphviz');
+    const zoomOutButton = document.getElementById('zoom-out-graphviz');
+    const resizeDivider = document.querySelector('.resize-divider');
+
+    let currentZoom = 0.5; // Set the initial zoom to be zoomed out
+    let isResizing = false;
+    let initialWidth = 0;
+
+    // Render graph
+    renderButton.addEventListener('click', async () => {
+      const dotCode = dotInput.value.trim();
+
+      if (!dotCode) {
+        alert("Please provide a DOT file content!");
+        return;
+      }
+
+      try {
+        const viz = new Viz();
+        const format = outputFormat.value;
+
+        if (format === "svg") {
+          const svg = await viz.renderString(dotCode);
+          graphView.innerHTML = svg;
+
+          // Set the zoom to initial (zoomed out)
+          graphView.style.transform = `scale(${currentZoom})`;
+        } else if (format === "png") {
+          const pngData = await viz.renderImageElement(dotCode);
+          graphView.innerHTML = "";
+          graphView.appendChild(pngData);
+
+          // Set the zoom to initial (zoomed out)
+          graphView.style.transform = `scale(${currentZoom})`;
+        }
+      } catch (err) {
+        alert("Error rendering graph: " + err.message);
+      }
+    });
+
+    // Zoom in button
+    zoomInButton.addEventListener('click', () => {
+      currentZoom += 0.05; // Slow down the zoom speed
+      graphView.style.transform = `scale(${currentZoom})`;
+    });
+
+    // Zoom out button
+    zoomOutButton.addEventListener('click', () => {
+      if (currentZoom > 0.1) {
+        currentZoom -= 0.05; // Slow down the zoom speed
+        graphView.style.transform = `scale(${currentZoom})`;
+      }
+    });
+
+    // Download image
+    downloadButton.addEventListener('click', () => {
+      const svgElement = graphView.querySelector('svg');
+      if (svgElement) {
+        const serializer = new XMLSerializer();
+        const svgBlob = new Blob([serializer.serializeToString(svgElement)], { type: "image/svg+xml" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        const link = document.createElement('a');
+        link.href = svgUrl;
+        link.download = 'graph.svg';
+        link.click();
+
+        URL.revokeObjectURL(svgUrl);
+      }
+    });
+
+    // Resizing the divider
+    resizeDivider.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      initialWidth = e.clientX;
+      document.body.style.cursor = 'ew-resize';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isResizing) {
+        const diff = e.clientX - initialWidth;
+        const newWidth = Math.max(200, document.querySelector('.editor-container-graphviz').offsetWidth + diff);
+        document.querySelector('.editor-container-graphviz').style.width = `${newWidth}px`;
+        initialWidth = e.clientX;
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isResizing = false;
+      document.body.style.cursor = 'default';
+    });
+  </script>
+</div>
+
+
+<script>
+    function createGraphvizViewer(id, postfix) {
+      return `
+        <div id="graphviz-viewer-${postfix}">
+          <style>
+            /* Graphviz Viewer Styles */
+            #graphviz-viewer-${postfix} * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            #graphviz-viewer-${postfix} {
+              font-family: Arial, sans-serif;
+              display: flex;
+              flex-direction: column;
+              height: 70vh;
+              color: #333;
+            }
+            .header-graphviz-${postfix} {
+              background: #282c34;
+              color: white;
+              padding: 1rem;
+              text-align: center;
+              font-size: 1.5rem;
+              font-weight: bold;
+            }
+            .container-graphviz-${postfix} {
+              display: flex;
+              flex: 1;
+              overflow: hidden;
+              position: relative;
+            }
+            .editor-container-graphviz-${postfix} {
+              width: 40%;
+              background: #2e2e2e;
+              color: white;
+              display: flex;
+              flex-direction: column;
+              border-right: 2px solid #ccc;
+              border-bottom: 2px solid #ccc;
+              overflow: hidden;
+              position: relative;
+            }
+            textarea#dot-input-graphviz-${postfix} {
+              flex: 1;
+              background: #1e1e1e;
+              color: white;
+              font-family: "Courier New", Courier, monospace;
+              font-size: 1rem;
+              padding: 1rem;
+              border: none;
+              resize: none;
+              outline: none;
+              overflow-y: auto;
+            }
+            .controls-graphviz-${postfix} {
+              padding: 1rem;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .controls-graphviz-${postfix} button,
+            .controls-graphviz-${postfix} select {
+              padding: 0.5rem 1rem;
+              background: #61dafb;
+              border: none;
+              color: #282c34;
+              font-size: 1rem;
+              font-weight: bold;
+              border-radius: 5px;
+              cursor: pointer;
+            }
+            .controls-graphviz-${postfix} button:hover {
+              background: #21a1f1;
+            }
+            .graph-container-graphviz-${postfix} {
+              flex: 1;
+              background: #f4f4f4;
+              overflow: auto;
+              position: relative;
+              border-left: 2px solid #ccc;
+              border-top: 2px solid #ccc;
+            }
+            #graph-view-graphviz-${postfix} {
+              position: absolute;
+              transform: translate(-50%, -50%);
+              max-width: 100%;
+              max-height: 100%;
+              object-fit: contain;
+            }
+            .zoom-controls-graphviz-${postfix} {
+              position: absolute;
+              bottom: 10px;
+              right: 10px;
+            }
+            .zoom-controls-graphviz-${postfix} button {
+              margin: 0 5px;
+              padding: 0.5rem 1rem;
+              font-size: 1rem;
+              background: #61dafb;
+              border: none;
+              color: #282c34;
+              font-weight: bold;
+              border-radius: 5px;
+              cursor: pointer;
+            }
+            .zoom-controls-graphviz-${postfix} button:hover {
+              background: #21a1f1;
+            }
+            .resize-divider-${postfix} {
+              width: 5px;
+              background-color: #888;
+              cursor: ew-resize;
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              right: 0;
+              z-index: 10;
+            }
+          </style>
+  
+         <header class="header-graphviz-${postfix}">
+            ${postfix === 'CFG' ? 'Control Flow Graph Viewer' : 'Data Dependency Graph Viewer'}
+        </header>
+          <div class="container-graphviz-${postfix}">
+            <div class="editor-container-graphviz-${postfix}">
+              <textarea id="dot-input-graphviz-${postfix}" placeholder="Paste your DOT file for ${postfix.toUpperCase()}..."></textarea>
+              <div class="controls-graphviz-${postfix}">
+                <button id="render-btn-graphviz-${postfix}">Render Graph</button>
+                <select id="output-format-graphviz-${postfix}">
+                  <option value="svg" selected>SVG</option>
+                  <option value="png">PNG</option>
+                </select>
+                <button id="download-btn-graphviz-${postfix}">Download</button>
+              </div>
+              <div class="resize-divider-${postfix}"></div>
+            </div>
+            <div class="graph-container-graphviz-${postfix}">
+              <div id="graph-view-graphviz-${postfix}"></div>
+         
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  
+    function setupGraphvizViewer(postfix) {
+      const graphContainer = document.querySelector(`.graph-container-graphviz-${postfix}`);
+      const graphView = document.getElementById(`graph-view-graphviz-${postfix}`);
+      const dotInput = document.getElementById(`dot-input-graphviz-${postfix}`);
+      const renderButton = document.getElementById(`render-btn-graphviz-${postfix}`);
+      const downloadButton = document.getElementById(`download-btn-graphviz-${postfix}`);
+      const outputFormat = document.getElementById(`output-format-graphviz-${postfix}`);
+
+      const resizeDivider = document.querySelector(`.resize-divider-${postfix}`);
+  
+      let currentZoom = 0.5;
+      let isResizing = false;
+      let initialWidth = 0;
+  
+      renderButton.addEventListener('click', async () => {
+        const dotCode = dotInput.value.trim();
+        if (!dotCode) {
+          alert(`Please provide a DOT file for ${postfix.toUpperCase()}!`);
+          return;
+        }
+        try {
+          const viz = new Viz();
+          const format = outputFormat.value;
+          if (format === "svg") {
+            const svg = await viz.renderString(dotCode);
+            graphView.innerHTML = svg;
+            graphView.style.transform = `scale(${currentZoom})`;
+          } else if (format === "png") {
+            const pngData = await viz.renderImageElement(dotCode);
+            graphView.innerHTML = "";
+            graphView.appendChild(pngData);
+            graphView.style.transform = `scale(${currentZoom})`;
+          }
+        } catch (err) {
+          alert(`Error rendering ${postfix.toUpperCase()}: ` + err.message);
+        }
+      });
+  
+
+  
+      downloadButton.addEventListener('click', () => {
+        const svgElement = graphView.querySelector('svg');
+        if (svgElement) {
+          const serializer = new XMLSerializer();
+          const svgBlob = new Blob([serializer.serializeToString(svgElement)], { type: "image/svg+xml" });
+          const svgUrl = URL.createObjectURL(svgBlob);
+  
+          const link = document.createElement('a');
+          link.href = svgUrl;
+          link.download = `${postfix}.svg`;
+          link.click();
+  
+          URL.revokeObjectURL(svgUrl);
+        }
+      });
+  
+      resizeDivider.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        initialWidth = e.clientX;
+        document.body.style.cursor = 'ew-resize';
+      });
+  
+      document.addEventListener('mousemove', (e) => {
+        if (isResizing) {
+          const diff = e.clientX - initialWidth;
+          const newWidth = Math.max(200, document.querySelector(`.editor-container-graphviz-${postfix}`).offsetWidth + diff);
+          document.querySelector(`.editor-container-graphviz-${postfix}`).style.width = `${newWidth}px`;
+          initialWidth = e.clientX;
+        }
+      });
+  
+      document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = 'default';
+      });
+    }
+  
+    document.getElementById("cfg-viewer").innerHTML = createGraphvizViewer("cfg-viewer", "CFG");
+    document.getElementById("dfg-viewer").innerHTML = createGraphvizViewer("dfg-viewer", "DFG");
+  
+    setupGraphvizViewer("CFG");
+    setupGraphvizViewer("DFG");
+  </script>

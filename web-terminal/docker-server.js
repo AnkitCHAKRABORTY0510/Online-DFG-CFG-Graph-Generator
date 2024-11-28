@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const createContainer = (callback) => {
     const containerId = uuidv4();
-    exec(`docker run -d --name ${containerId} alpine:latest tail -f /dev/null`, (error, stdout, stderr) => {
+    exec(`docker run -d --name ${containerId} docker-terminal-llvm tail -f /dev/null`, (error, stdout, stderr) => {
         if (error) {
             console.error(`Error creating container: ${stderr}`);
             callback(error);

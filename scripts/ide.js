@@ -880,6 +880,67 @@ function saveAllFiles() {
 
 
 //-------------------------------------------------------------------------------------------------------------
+//sending files to docker container test
+async function sendAllFiles() {
+    const folderName = generateRandomFolderName(); // Generate random folder name
+    const zip = new JSZip(); // Initialize JSZip object
+
+    // Select all editor divs inside the editor container
+    editors = document.querySelectorAll("#editor > div");
+    
+    editors.forEach(editorDiv => {
+        // Use the editorDiv ID to get the corresponding editor from the sessions
+        const editorDivId = editorDiv.id; // e.g., "editor-instance-2"
+        
+        // Check if the editor session exists in editorSessions
+        if (editorSessions[editorDivId]) {
+            content = editorSessions[editorDivId].getValue(); // Get the content of the editor
+            
+            // Get the file name from the corresponding tab element
+            tab = document.querySelector(`#editor-${editorDivId.split('-')[2]}`);
+            fileNameElement = tab.querySelector('a'); // Get the anchor tag
+            fileName = fileNameElement ? fileNameElement.textContent.trim() : `Untitled_${editorId.split('-')[2]}.txt`; // Extract file name or default
+            
+            // Add file to ZIP with the editor content
+            zip.file(`${folderName}/${fileName}`, content);
+        } else {
+            console.error(`No editor session found for ${editorDivId}`);
+        }
+    });
+
+    // Generate the ZIP file and trigger the download
+    zip.generateAsync({ type: "blob" }).then(function(content) {
+        saveAs(content, `${folderName}.zip`); // Save the ZIP with the folder name
+    });
+
+    try {
+        // Generate the ZIP file
+        const content = await zip.generateAsync({ type: "blob" });
+        
+        // Create FormData to include the zip file
+        const formData = new FormData();
+        formData.append("zipFile", content, `${folderName}.zip`);
+
+        // Send the ZIP file to the server
+        const response = await fetch("http://localhost:7000/upload", { // Replace <SERVER_IP> with your server's IP
+            method: "POST",
+            body: formData,
+        });
+
+        if (response.ok) {
+            const result = await response.json(); // Assuming server returns JSON
+            console.log("Server Response:", result.message); // Display success message
+        } else {
+            console.error("Failed to send the zip file to the server.");
+        }
+    } catch (error) {
+        console.error("Error while sending ZIP file:", error);
+    }
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------
 //send file to the server
 
 // Function to set/get cookies
@@ -935,34 +996,7 @@ function startWebSocketConnection() {
 }
 
 // Function to send files through WebSocket
-function sendFiles(sessionId) {
-    const folderName = sessionId; // Use sessionId as folderName
-    const zip = new JSZip();
-    const editors = document.querySelectorAll("#editor > div");
 
-    editors.forEach(editorDiv => {
-        const editorDivId = editorDiv.id;
-        if (editorSessions[editorDivId]) {
-            const content = editorSessions[editorDivId].getValue();
-
-            const tab = document.querySelector(`#editor-${editorDivId.split('-')[2]}`);
-            const fileNameElement = tab.querySelector('a');
-            const fileName = fileNameElement ? fileNameElement.textContent.trim() : `Untitled_${editorDivId.split('-')[2]}.txt`;
-
-            zip.file(`${folderName}/${fileName}`, content);
-        }
-    });
-
-    // Generate the ZIP and send it through WebSocket
-    zip.generateAsync({ type: "blob" }).then(function(content) {
-        socket.send(content); // Send ZIP file as binary
-    });
-}
-
-// Random session ID generator
-function generateRandomSessionId() {
-    return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
-}
 
 
 
